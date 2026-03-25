@@ -41,10 +41,10 @@ Payload:
 }
 ```
 
-### GetSender
+### GetCurrentSender
 
 Request:
-Topic: sislink/l008/sl008u04/slp001/read/dab/sender
+Topic: sislink/l008/sl008u04/slp001/read/dab/currentSender
 
 Payload:
 ``` json
@@ -53,7 +53,7 @@ Payload:
 ```
 
 Antwort
-Topc: sislink/l008/sl008u04/slp001/status/dab/senderList
+Topc: sislink/l008/sl008u04/slp001/status/dab/currentSender
 
 Payload: 
 ``` json

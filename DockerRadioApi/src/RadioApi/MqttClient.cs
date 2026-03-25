@@ -2,13 +2,17 @@ using System.Buffers;
 using System.Text;
 using MQTTnet;
 
+namespace RadioApi;
+
 public sealed class MqttClient : IAsyncDisposable
 {
-    private const string MqttBrokerHost = "localhost";
-    private const int MqttBrokerPort = 1883;
+    private readonly string MqttBrokerHost = "localhost";
+    private readonly int MqttBrokerPort = 1883;
     private const string SisLinkWildcardTopic = "sislink/#";
     private const int InitialReconnectDelayMs = 1000;
     private const int MaxReconnectDelayMs = 60000;
+
+    private readonly AudioPlayer _audioPlayer = new();
 
     private readonly MqttClientFactory mqttClientFactory;
     private readonly SemaphoreSlim semaphore = new(1, 1);
@@ -17,9 +21,11 @@ public sealed class MqttClient : IAsyncDisposable
     private bool isDisposed;
     private int reconnectAttempts;
 
-    public MqttClient()
+    public MqttClient(string mqttBrokerHost, int mqttBrokerPort)
     {
         this.mqttClientFactory = new MqttClientFactory();
+        MqttBrokerHost = mqttBrokerHost;
+        MqttBrokerPort = mqttBrokerPort;
     }
 
     public async Task<bool> Start()
@@ -138,6 +144,16 @@ public sealed class MqttClient : IAsyncDisposable
             return;
         }
 
+        if (topicParts.Contains("play"))
+        {
+            _audioPlayer.PlayAsync(null);
+        }
+
+        if (topicParts.Contains("stop"))
+        {
+            _audioPlayer.Stop();
+        }
+
         // TODO check Topics
         //if (!this.forwardedSubTopics.Contains(topicParts[^2]))
         //{
@@ -185,7 +201,7 @@ public sealed class MqttClient : IAsyncDisposable
                 this.reconnectAttempts++;
             }
 
-            var delay = Math.Min(InitialReconnectDelayMs * (int)Math.Pow(2, Math.Min(this.reconnectAttempts - 1, 6)), MaxReconnectDelayMs);
+            var delay = Math.Min(InitialReconnectDelayMs * (int) Math.Pow(2, Math.Min(this.reconnectAttempts - 1, 6)), MaxReconnectDelayMs);
 
             Console.WriteLine($"Reconnection attempt {this.reconnectAttempts} in {delay}ms");
 

@@ -47,9 +47,8 @@ docker run --rm -it --device /dev/snd radio-api
 If the DAB+ service list exists on the host, mount the sysfs path read-only:
 
 ```bash
-docker run --rm -it --device /dev/snd \
-  -v /sys/bus/spi/devices/spi0.1/si468x_service_list:/sys/bus/spi/devices/spi0.1/si468x_service_list:ro \
-  radio-api
+
+docker run --rm -it -v /root:/audio -v /sys/bus/spi/devices/spi0.1/si468x_service_list:/sys/bus/spi/devices/spi0.1/si468x_service_list:ro --device /dev/snd ghcr.io/hoiton/hackathon-scp-radio:latest --mqtt-host <broker-host> --mqtt-port 1883
 ```
 
 ## Publish on GitHub

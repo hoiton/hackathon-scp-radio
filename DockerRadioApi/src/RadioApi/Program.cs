@@ -2,11 +2,39 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using RadioApi;
+
+var mqttHost = "localhost";
+var mqttPort = 1883;
+
+for (var i = 0; i < args.Length; i++)
+{
+    if (string.Equals(args[i], "--mqtt-host", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        mqttHost = args[++i];
+        continue;
+    }
+
+    if (string.Equals(args[i], "--mqtt-port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        if (!int.TryParse(args[++i], out mqttPort))
+        {
+            Console.Error.WriteLine("Invalid value for --mqtt-port. Expected an integer.");
+            return;
+        }
+
+        continue;
+    }
+}
 
 Console.WriteLine("radio-api interactive mode");
 Console.WriteLine("Commands: play [file], sample, services [file], help, exit");
+Console.WriteLine($"MQTT broker: {mqttHost}:{mqttPort}");
 
 var player = new AudioPlayer();
+
+var mqttClient = new MqttClient(mqttHost, mqttPort);
+await mqttClient.Start();
 
 while (true)
 {
@@ -96,6 +124,7 @@ while (true)
 internal sealed class AudioPlayer
 {
     internal const string DefaultSamplePath = "/app/samples/DaveRaindance.wav";
+    private Process? _playbackProcess;
     private readonly SemaphoreSlim _playbackLock = new(1, 1);
 
     public async Task<PlayResult> PlayAsync(string? file)
@@ -129,12 +158,12 @@ internal sealed class AudioPlayer
 
             startInfo.ArgumentList.Add(targetPath);
 
-            using var process = new Process { StartInfo = startInfo };
-            process.Start();
+            using var playbackProcess = new Process { StartInfo = startInfo };
+            playbackProcess.Start();
 
-            var stdout = await process.StandardOutput.ReadToEndAsync();
-            var stderr = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            var stdout = await playbackProcess.StandardOutput.ReadToEndAsync();
+            var stderr = await playbackProcess.StandardError.ReadToEndAsync();
+            await playbackProcess.WaitForExitAsync();
 
             if (!string.IsNullOrWhiteSpace(stdout))
             {
@@ -146,14 +175,19 @@ internal sealed class AudioPlayer
                 Console.Error.WriteLine(stderr.Trim());
             }
 
-            return process.ExitCode == 0
-                ? new PlayResult(true, "Playback completed.", targetPath, process.ExitCode)
-                : new PlayResult(false, $"aplay exited with code {process.ExitCode}.", targetPath, process.ExitCode);
+            return playbackProcess.ExitCode == 0
+                ? new PlayResult(true, "Playback completed.", targetPath, playbackProcess.ExitCode)
+                : new PlayResult(false, $"aplay exited with code {playbackProcess.ExitCode}.", targetPath, playbackProcess.ExitCode);
         }
         finally
         {
             _playbackLock.Release();
         }
+    }
+
+    public void Stop()
+    {
+        _playbackProcess?.Kill();
     }
 
     private static string ResolvePath(string? file)

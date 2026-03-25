@@ -13,11 +13,11 @@ rootCommand.SetHandler(async context =>
         return;
     }
 
-    var scriptPath = "/usr/bin/aplay /root/165187__blaukreuz__global-village-hochdeutsch.wav";
+    var scriptPath = "/test/usr/bin/aplay /test/root/165187__blaukreuz__global-village-hochdeutsch.wav";
 
     var startInfo = new ProcessStartInfo
     {
-        FileName = "/bin/bash",
+        FileName = "/test/bin/bash",
         ArgumentList = { scriptPath },
         WorkingDirectory = Environment.CurrentDirectory,
         RedirectStandardOutput = true,

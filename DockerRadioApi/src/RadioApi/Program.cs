@@ -13,7 +13,7 @@ rootCommand.SetHandler(async context =>
         return;
     }
 
-    var scriptPath = "/usr/bin/aplay 165187__blaukreuz__global-village-hochdeutsch.wav";
+    var scriptPath = "/usr/bin/aplay /root/165187__blaukreuz__global-village-hochdeutsch.wav";
 
     var startInfo = new ProcessStartInfo
     {

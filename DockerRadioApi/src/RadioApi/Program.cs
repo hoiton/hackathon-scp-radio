@@ -13,14 +13,7 @@ rootCommand.SetHandler(async context =>
         return;
     }
 
-    var scriptPath = "aplay 165187__blaukreuz__global-village-hochdeutsch.wav";
-
-    if (!File.Exists(scriptPath))
-    {
-        Console.Error.WriteLine($"Script not found: {scriptPath}");
-        context.ExitCode = 1;
-        return;
-    }
+    var scriptPath = "/usr/bin/aplay 165187__blaukreuz__global-village-hochdeutsch.wav";
 
     var startInfo = new ProcessStartInfo
     {

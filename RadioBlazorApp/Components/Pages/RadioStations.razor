@@ -49,23 +49,24 @@
         </MudGrid>
         <MudDivider Class="my-4" />
         <MudStack Row="true" Spacing="2">
-            @if (!MqttService.IsConnected)
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadStations"
+                       Disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    <span>Lade Sender...</span>
+                }
+                else
+                {
+                    <span>Sender abrufen</span>
+                }
+            </MudButton>
+
+            @if (MqttService.IsConnected)
             {
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.Link"
-                           OnClick="ConnectToMqtt">
-                    Verbinden
-                </MudButton>
-            }
-            else
-            {
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Success" 
-                           StartIcon="@Icons.Material.Filled.Refresh"
-                           OnClick="GetStations">
-                    Sender abrufen
-                </MudButton>
                 <MudButton Variant="Variant.Filled" 
                            Color="Color.Error" 
                            StartIcon="@Icons.Material.Filled.LinkOff"
@@ -154,11 +155,35 @@
     private string responseTopic = "radio/stations";
     private string statusMessage = "Nicht verbunden";
     private List<RadioStation> stations = new();
+    private bool isLoading = false;
 
     protected override void OnInitialized()
     {
         MqttService.OnStationsReceived += HandleStationsReceived;
         MqttService.OnStatusChanged += HandleStatusChanged;
+    }
+
+    private async Task LoadStations()
+    {
+        isLoading = true;
+        try
+        {
+            // Wenn nicht verbunden, erst verbinden
+            if (!MqttService.IsConnected)
+            {
+                await ConnectToMqtt();
+            }
+
+            // Dann Sender abrufen
+            if (MqttService.IsConnected)
+            {
+                await GetStations();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task ConnectToMqtt()
@@ -187,6 +212,7 @@
     private void HandleStationsReceived(List<RadioStation> receivedStations)
     {
         stations = receivedStations;
+        isLoading = false;
         InvokeAsync(StateHasChanged);
     }
 

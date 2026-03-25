@@ -13,7 +13,7 @@ rootCommand.SetHandler(async context =>
         return;
     }
 
-    var scriptPath = Path.Combine(Environment.CurrentDirectory, "aplay 165187__blaukreuz__global-village-hochdeutsch.wav");
+    var scriptPath = "aplay 165187__blaukreuz__global-village-hochdeutsch.wav";
 
     if (!File.Exists(scriptPath))
     {

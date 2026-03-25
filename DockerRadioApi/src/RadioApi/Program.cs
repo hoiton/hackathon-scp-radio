@@ -1,8 +1,8 @@
-﻿using System.CommandLine;
+using System.CommandLine;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-var rootCommand = new RootCommand("Run the test sound script on Linux.");
+var rootCommand = new RootCommand("Play the packaged DaveRaindance sample on Linux.");
 
 rootCommand.SetHandler(async context =>
 {
@@ -13,17 +13,25 @@ rootCommand.SetHandler(async context =>
         return;
     }
 
-    var scriptPath = "/test/usr/bin/aplay /test/root/165187__blaukreuz__global-village-hochdeutsch.wav";
+    var samplePath = "/app/samples/DaveRaindance.wav";
+
+    if (!File.Exists(samplePath))
+    {
+        Console.Error.WriteLine($"Sample file not found: {samplePath}");
+        context.ExitCode = 1;
+        return;
+    }
 
     var startInfo = new ProcessStartInfo
     {
-        FileName = "/test/bin/bash",
-        ArgumentList = { scriptPath },
+        FileName = "aplay",
         WorkingDirectory = Environment.CurrentDirectory,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
     };
+
+    startInfo.ArgumentList.Add(samplePath);
 
     using var process = new Process { StartInfo = startInfo };
 

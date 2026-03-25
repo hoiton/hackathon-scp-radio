@@ -1,6 +1,7 @@
 @page "/radio-stations"
 @rendermode InteractiveServer
 @using RadioBlazorApp.Services
+@using RadioBlazorApp.Models
 @inject MqttClientService MqttService
 @implements IDisposable
 
@@ -87,27 +88,10 @@
                       Dense="false"
                       Elevation="0">
                 <HeaderContent>
-                    <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RadioStation, object>(x => x.Name)">
-                            Name
-                        </MudTableSortLabel>
-                    </MudTh>
-                    <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RadioStation, object>(x => x.Frequency)">
-                            Frequenz
-                        </MudTableSortLabel>
-                    </MudTh>
-                    <MudTh>
-                        <MudTableSortLabel InitialDirection="SortDirection.Descending" 
-                                           SortBy="new Func<RadioStation, object>(x => x.SignalStrength)">
-                            Signalstärke
-                        </MudTableSortLabel>
-                    </MudTh>
-                    <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RadioStation, object>(x => x.Genre)">
-                            Genre
-                        </MudTableSortLabel>
-                    </MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Frequenz</MudTh>
+                    <MudTh>Signalstärke</MudTh>
+                    <MudTh>Genre</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">
@@ -197,8 +181,26 @@
 
     private void HandleStationsReceived(List<RadioStation> receivedStations)
     {
-        stations = receivedStations;
-        isLoading = false;
+        Console.WriteLine($"[RadioStations] HandleStationsReceived called with {receivedStations?.Count ?? 0} stations");
+
+        if (receivedStations != null && receivedStations.Count > 0)
+        {
+            stations = new List<RadioStation>(receivedStations);
+            isLoading = false;
+            statusMessage = $"✅ {stations.Count} Sender erfolgreich geladen!";
+
+            Console.WriteLine($"[RadioStations] Stations list updated. Count: {stations.Count}");
+            foreach (var station in stations)
+            {
+                Console.WriteLine($"  - {station.Name} @ {station.Frequency} (Strength: {station.SignalStrength})");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[RadioStations] Received null or empty stations list");
+            statusMessage = "⚠️ Keine Sender empfangen";
+        }
+
         InvokeAsync(StateHasChanged);
     }
 

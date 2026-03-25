@@ -2,6 +2,7 @@ using MQTTnet;
 using MQTTnet.Client;
 using System.Text;
 using System.Text.Json;
+using RadioBlazorApp.Models;
 
 namespace RadioBlazorApp.Services;
 
@@ -89,7 +90,7 @@ public class MqttClientService : IDisposable
         try
         {
             var payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
-            OnStatusChanged?.Invoke($"Nachricht empfangen von Topic: {e.ApplicationMessage.Topic}");
+            OnStatusChanged?.Invoke($"📨 Nachricht empfangen von Topic: {e.ApplicationMessage.Topic}");
 
             // Repariere JavaScript-Objektnotation zu gültigem JSON
             // Füge Anführungszeichen um Property-Namen hinzu
@@ -104,15 +105,23 @@ public class MqttClientService : IDisposable
                 PropertyNameCaseInsensitive = true 
             });
 
-            if (response?.Stations != null)
+            if (response?.Stations != null && response.Stations.Count > 0)
             {
+                OnStatusChanged?.Invoke($"🎵 {response.Stations.Count} Sender gefunden - übertrage zur UI...");
+
+                // Event auslösen
                 OnStationsReceived?.Invoke(response.Stations);
-                OnStatusChanged?.Invoke($"{response.Stations.Count} Sender empfangen");
+
+                OnStatusChanged?.Invoke($"✅ {response.Stations.Count} Sender erfolgreich übertragen!");
+            }
+            else
+            {
+                OnStatusChanged?.Invoke("⚠️ Keine Sender in der Antwort gefunden");
             }
         }
         catch (Exception ex)
         {
-            OnStatusChanged?.Invoke($"Fehler beim Parsen der Nachricht: {ex.Message}");
+            OnStatusChanged?.Invoke($"❌ Fehler beim Parsen der Nachricht: {ex.Message}");
         }
 
         return Task.CompletedTask;
@@ -122,24 +131,4 @@ public class MqttClientService : IDisposable
     {
         _mqttClient?.Dispose();
     }
-}
-
-public class StationsResponse
-{
-    public List<RadioStation>? Stations { get; set; }
-}
-
-public class RadioStation
-{
-    public string Label { get; set; } = string.Empty;
-    public double Mhz { get; set; }
-    public int ServiceId { get; set; }
-    public int SubChannelId { get; set; }
-    public int Strength { get; set; }
-
-    // Computed properties für Kompatibilität mit der UI
-    public string? Name => Label;
-    public string? Frequency => $"{Mhz:F3} MHz";
-    public int SignalStrength => Strength;
-    public string? Genre => "DAB+";
 }

@@ -1,12 +1,33 @@
-# C# Command-Line Project with Docker
+# Radio CLI with Docker
 
-This is a minimal .NET 10 command-line application packaged with Docker and ready to publish to GitHub Container Registry.
+This project packages a .NET 10 command-line application in Docker. The container can:
+
+- play WAV files with `aplay`
+- parse a DAB+ service list from `si468x_service_list`
 
 ## Run locally
 
 ```bash
 dotnet restore src/RadioApi/RadioApi.csproj
-dotnet run --project src/RadioApi/RadioApi.csproj -- --name Michael
+dotnet run --project src/RadioApi/RadioApi.csproj
+```
+
+Interactive commands:
+
+```text
+help
+sample
+play
+play /app/samples/DaveRaindance.wav
+services
+services /sys/bus/spi/devices/spi0.1/si468x_service_list
+exit
+```
+
+The default `services` path is:
+
+```text
+/sys/bus/spi/devices/spi0.1/si468x_service_list
 ```
 
 ## Build Docker image
@@ -17,16 +38,18 @@ docker build -t radio-api .
 
 ## Run with Docker
 
+Use an interactive terminal for stdin commands:
+
 ```bash
-docker run --rm radio-api --name Michael
+docker run --rm -it --device /dev/snd radio-api
 ```
 
-Expected output:
+If the DAB+ service list exists on the host, mount the sysfs path read-only:
 
-```text
-Hello, Michael!
-Running on .NET 10.x.x
-OS: Unix ...
+```bash
+docker run --rm -it --device /dev/snd \
+  -v /sys/bus/spi/devices/spi0.1/si468x_service_list:/sys/bus/spi/devices/spi0.1/si468x_service_list:ro \
+  radio-api
 ```
 
 ## Publish on GitHub
@@ -40,10 +63,3 @@ When you push to `main`, GitHub Actions will:
 - tag the image with the branch name, commit SHA, and `latest` on the default branch
 
 Version tags like `v1.0.0` will also be published as container tags.
-
-To pull the published image:
-
-```bash
-docker pull ghcr.io/<owner>/<repo>:latest
-```
-

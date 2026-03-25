@@ -13,6 +13,7 @@ public class MqttClientService : IDisposable
     private int _brokerPort = 1883;
     private string _requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
     private string _responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
+    private string _playTopic = "sislink/l008/sl008u04/slp001/write/dab/play";
 
     public event Action<List<RadioStation>>? OnStationsReceived;
     public event Action<string>? OnStatusChanged;
@@ -82,6 +83,44 @@ public class MqttClientService : IDisposable
         catch (Exception ex)
         {
             OnStatusChanged?.Invoke($"Fehler beim Senden: {ex.Message}");
+        }
+    }
+
+    public async Task PlayStationAsync(RadioStation station, int volume = 50)
+    {
+        if (_mqttClient == null || !_mqttClient.IsConnected)
+        {
+            OnStatusChanged?.Invoke("Nicht verbunden! Bitte zuerst verbinden.");
+            return;
+        }
+
+        try
+        {
+            var playCommand = new
+            {
+                station = new
+                {
+                    label = station.Label,
+                    serviceId = station.ServiceId,
+                    subChannelId = station.SubChannelId
+                },
+                volume = volume
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(playCommand);
+
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(_playTopic)
+                .WithPayload(jsonPayload)
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await _mqttClient.PublishAsync(message);
+            OnStatusChanged?.Invoke($"🎵 Spiele Sender: {station.Label} (Lautstärke: {volume}%)");
+        }
+        catch (Exception ex)
+        {
+            OnStatusChanged?.Invoke($"❌ Fehler beim Abspielen: {ex.Message}");
         }
     }
 

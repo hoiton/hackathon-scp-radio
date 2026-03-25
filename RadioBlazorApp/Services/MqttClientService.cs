@@ -15,6 +15,7 @@ public class MqttClientService : IDisposable
     private string _responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
     private string _playTopic = "sislink/l008/sl008u04/slp001/write/dab/play";
     private string _stopTopic = "sislink/l008/sl008u04/slp001/write/dab/stop";
+    private string _volumeTopic = "sislink/l008/sl008u04/slp001/write/dab/volume";
 
     public event Action<List<RadioStation>>? OnStationsReceived;
     public event Action<string>? OnStatusChanged;
@@ -147,6 +148,33 @@ public class MqttClientService : IDisposable
         catch (Exception ex)
         {
             OnStatusChanged?.Invoke($"❌ Fehler beim Stoppen: {ex.Message}");
+        }
+    }
+
+    public async Task SetVolumeAsync(int volume)
+    {
+        if (_mqttClient == null || !_mqttClient.IsConnected)
+        {
+            return;
+        }
+
+        try
+        {
+            var volumeCommand = new { volume = volume };
+            var jsonPayload = JsonSerializer.Serialize(volumeCommand);
+
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(_volumeTopic)
+                .WithPayload(jsonPayload)
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await _mqttClient.PublishAsync(message);
+            OnStatusChanged?.Invoke($"🔊 Lautstärke: {volume}%");
+        }
+        catch (Exception ex)
+        {
+            OnStatusChanged?.Invoke($"❌ Fehler beim Setzen der Lautstärke: {ex.Message}");
         }
     }
 

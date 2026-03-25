@@ -84,7 +84,8 @@
                         <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Medium" Class="mr-2" />
                         Lautstärke
                     </MudText>
-                    <MudSlider @bind-Value="volume" 
+                    <MudSlider Value="@volume" 
+                               ValueChanged="@(async (int val) => await OnVolumeChanged(val))"
                                Min="0" 
                                Max="100" 
                                Step="5"
@@ -229,6 +230,15 @@
     private async Task StopPlayback()
     {
         await MqttService.StopPlaybackAsync();
+    }
+
+    private async Task OnVolumeChanged(int newVolume)
+    {
+        volume = newVolume;
+        if (MqttService.IsConnected)
+        {
+            await MqttService.SetVolumeAsync(volume);
+        }
     }
 
     private void HandleStationsReceived(List<RadioStation> receivedStations)

@@ -12,5 +12,9 @@ RUN dotnet publish src/RadioApi/RadioApi.csproj \
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends alsa-utils \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
+COPY samples/ /app/samples/
 ENTRYPOINT ["dotnet", "RadioApi.dll"]

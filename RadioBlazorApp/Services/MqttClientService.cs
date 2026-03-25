@@ -14,6 +14,7 @@ public class MqttClientService : IDisposable
     private string _requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
     private string _responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
     private string _playTopic = "sislink/l008/sl008u04/slp001/write/dab/play";
+    private string _stopTopic = "sislink/l008/sl008u04/slp001/write/dab/stop";
 
     public event Action<List<RadioStation>>? OnStationsReceived;
     public event Action<string>? OnStatusChanged;
@@ -121,6 +122,31 @@ public class MqttClientService : IDisposable
         catch (Exception ex)
         {
             OnStatusChanged?.Invoke($"❌ Fehler beim Abspielen: {ex.Message}");
+        }
+    }
+
+    public async Task StopPlaybackAsync()
+    {
+        if (_mqttClient == null || !_mqttClient.IsConnected)
+        {
+            OnStatusChanged?.Invoke("Nicht verbunden! Bitte zuerst verbinden.");
+            return;
+        }
+
+        try
+        {
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(_stopTopic)
+                .WithPayload("{}")
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await _mqttClient.PublishAsync(message);
+            OnStatusChanged?.Invoke($"⏹️ Wiedergabe gestoppt");
+        }
+        catch (Exception ex)
+        {
+            OnStatusChanged?.Invoke($"❌ Fehler beim Stoppen: {ex.Message}");
         }
     }
 

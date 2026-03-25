@@ -78,17 +78,31 @@
     @if (stations.Any())
     {
         <MudPaper Elevation="2" Class="pa-4 mb-4">
-            <MudText Typo="Typo.h6" Class="mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Medium" Class="mr-2" />
-                Lautstärke
-            </MudText>
-            <MudSlider @bind-Value="volume" 
-                       Min="0" 
-                       Max="100" 
-                       Step="5"
-                       Color="Color.Primary">
-                Lautstärke: @volume%
-            </MudSlider>
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Medium" Class="mr-2" />
+                        Lautstärke
+                    </MudText>
+                    <MudSlider @bind-Value="volume" 
+                               Min="0" 
+                               Max="100" 
+                               Step="5"
+                               Color="Color.Primary">
+                        Lautstärke: @volume%
+                    </MudSlider>
+                </MudItem>
+                <MudItem xs="12" md="4" Style="display: flex; align-items: flex-end;">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Error" 
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopPlayback"
+                               FullWidth="true"
+                               Size="Size.Large">
+                        Stop
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
         </MudPaper>
     }
 
@@ -210,6 +224,11 @@
     private async Task PlayStation(RadioStation station)
     {
         await MqttService.PlayStationAsync(station, volume);
+    }
+
+    private async Task StopPlayback()
+    {
+        await MqttService.StopPlaybackAsync();
     }
 
     private void HandleStationsReceived(List<RadioStation> receivedStations)

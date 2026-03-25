@@ -1,0 +1,290 @@
+@page "/radio-stations"
+@rendermode InteractiveServer
+@using RadioBlazorApp.Services
+@using RadioBlazorApp.Models
+@inject MqttClientService MqttService
+@implements IDisposable
+
+<PageTitle>DAB+ Radio Sender</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.Radio" Class="mr-2" />
+        DAB+ Radio Sender
+    </MudText>
+
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Medium" Class="mr-2" />
+            MQTT Verbindung
+        </MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="brokerAddress" 
+                              Label="Broker Adresse" 
+                              Variant="Variant.Outlined" 
+                              Disabled="@MqttService.IsConnected"
+                              FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="brokerPort" 
+                                 Label="Port" 
+                                 Variant="Variant.Outlined" 
+                                 Disabled="@MqttService.IsConnected"
+                                 FullWidth="true" />
+            </MudItem>
+        </MudGrid>
+        <MudDivider Class="my-4" />
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadStations"
+                       Disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    <span>Lade Sender...</span>
+                }
+                else
+                {
+                    <span>Sender abrufen</span>
+                }
+            </MudButton>
+
+            @if (MqttService.IsConnected)
+            {
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Error" 
+                           StartIcon="@Icons.Material.Filled.LinkOff"
+                           OnClick="DisconnectFromMqtt">
+                    Trennen
+                </MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Medium" Class="mr-2" />
+            Status
+        </MudText>
+        <MudAlert Severity="@(MqttService.IsConnected ? Severity.Success : Severity.Normal)" 
+                  Variant="Variant.Filled">
+            @statusMessage
+        </MudAlert>
+    </MudPaper>
+
+    @if (stations.Any())
+    {
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Medium" Class="mr-2" />
+                        Lautstärke
+                    </MudText>
+                    <MudSlider Value="@volume" 
+                               ValueChanged="@(async (int val) => await OnVolumeChanged(val))"
+                               Min="0" 
+                               Max="100" 
+                               Step="5"
+                               Color="Color.Primary">
+                        Lautstärke: @volume%
+                    </MudSlider>
+                </MudItem>
+                <MudItem xs="12" md="4" Style="display: flex; align-items: flex-end;">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Error" 
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopPlayback"
+                               FullWidth="true"
+                               Size="Size.Large">
+                        Stop
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    @if (stations.Any())
+    {
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h5" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.GraphicEq" Size="Size.Medium" Class="mr-2" />
+                Gefundene Sender (@stations.Count)
+            </MudText>
+            <MudTable Items="@stations.OrderByDescending(s => s.SignalStrength)" 
+                      Hover="true" 
+                      Striped="true" 
+                      Dense="false"
+                      Elevation="0">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Frequenz</MudTh>
+                    <MudTh>Signalstärke</MudTh>
+                    <MudTh>Genre</MudTh>
+                    <MudTh>Aktion</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudText Typo="Typo.body1">
+                            <strong>@context.Name</strong>
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Frequenz">@context.Frequency</MudTd>
+                    <MudTd DataLabel="Signalstärke">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudProgressLinear Color="@GetSignalColor(context.SignalStrength)" 
+                                               Value="@context.SignalStrength" 
+                                               Size="Size.Medium"
+                                               Style="min-width: 150px;" />
+                            <MudText Typo="Typo.body2">@context.SignalStrength%</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Genre">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Genre</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Aktion">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success" 
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="@(() => PlayStation(context))">
+                            Abspielen
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private string brokerAddress = "localhost";
+    private int brokerPort = 1883;
+    private string requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
+    private string responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
+    private string statusMessage = "Nicht verbunden";
+    private List<RadioStation> stations = new();
+    private bool isLoading = false;
+    private int volume = 50;
+
+    protected override void OnInitialized()
+    {
+        MqttService.OnStationsReceived += HandleStationsReceived;
+        MqttService.OnStatusChanged += HandleStatusChanged;
+    }
+
+    private async Task LoadStations()
+    {
+        isLoading = true;
+        try
+        {
+            // Wenn nicht verbunden, erst verbinden
+            if (!MqttService.IsConnected)
+            {
+                await ConnectToMqtt();
+            }
+
+            // Dann Sender abrufen
+            if (MqttService.IsConnected)
+            {
+                await GetStations();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ConnectToMqtt()
+    {
+        try
+        {
+            await MqttService.ConnectAsync(brokerAddress, brokerPort, requestTopic, responseTopic);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Verbindungsfehler: {ex.Message}";
+        }
+    }
+
+    private async Task DisconnectFromMqtt()
+    {
+        await MqttService.DisconnectAsync();
+        stations.Clear();
+    }
+
+    private async Task GetStations()
+    {
+        await MqttService.SendGetStationsCommandAsync();
+    }
+
+    private async Task PlayStation(RadioStation station)
+    {
+        await MqttService.PlayStationAsync(station, volume);
+    }
+
+    private async Task StopPlayback()
+    {
+        await MqttService.StopPlaybackAsync();
+    }
+
+    private async Task OnVolumeChanged(int newVolume)
+    {
+        volume = newVolume;
+        if (MqttService.IsConnected)
+        {
+            await MqttService.SetVolumeAsync(volume);
+        }
+    }
+
+    private void HandleStationsReceived(List<RadioStation> receivedStations)
+    {
+        Console.WriteLine($"[RadioStations] HandleStationsReceived called with {receivedStations?.Count ?? 0} stations");
+
+        if (receivedStations != null && receivedStations.Count > 0)
+        {
+            stations = new List<RadioStation>(receivedStations);
+            isLoading = false;
+            statusMessage = $"✅ {stations.Count} Sender erfolgreich geladen!";
+
+            Console.WriteLine($"[RadioStations] Stations list updated. Count: {stations.Count}");
+            foreach (var station in stations)
+            {
+                Console.WriteLine($"  - {station.Name} @ {station.Frequency} (Strength: {station.SignalStrength})");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[RadioStations] Received null or empty stations list");
+            statusMessage = "⚠️ Keine Sender empfangen";
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleStatusChanged(string message)
+    {
+        statusMessage = message;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private Color GetSignalColor(int signalStrength)
+    {
+        return signalStrength switch
+        {
+            >= 75 => Color.Success,
+            >= 50 => Color.Warning,
+            _ => Color.Error
+        };
+    }
+
+    public void Dispose()
+    {
+        MqttService.OnStationsReceived -= HandleStationsReceived;
+        MqttService.OnStatusChanged -= HandleStatusChanged;
+    }
+}

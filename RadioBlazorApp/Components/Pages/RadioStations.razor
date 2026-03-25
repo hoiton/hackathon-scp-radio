@@ -60,9 +60,48 @@
                            OnClick="DisconnectFromMqtt">
                     Trennen
                 </MudButton>
+
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Info" 
+                           StartIcon="@Icons.Material.Filled.Radio"
+                           OnClick="GetCurrentStation">
+                    Aktueller Sender
+                </MudButton>
             }
         </MudStack>
     </MudPaper>
+
+    @if (currentStation != null)
+    {
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Radio" Size="Size.Medium" Class="mr-2" />
+                Aktuell läuft
+            </MudText>
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.h6">@currentStation.Name</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@currentStation.Frequency</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2">Service ID: @currentStation.ServiceId</MudText>
+                            <MudText Typo="Typo.body2">Sub-Channel: @currentStation.SubChannelId</MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2">Signalstärke:</MudText>
+                            <MudProgressLinear Color="@GetSignalColor(currentStation.SignalStrength)" 
+                                               Value="@currentStation.SignalStrength" 
+                                               Size="Size.Medium"
+                                               Class="mt-2" />
+                            <MudText Typo="Typo.caption">@currentStation.SignalStrength%</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudPaper>
+    }
 
     <MudPaper Elevation="2" Class="pa-4 mb-4">
         <MudText Typo="Typo.h5" Class="mb-3">
@@ -167,12 +206,14 @@
     private string responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
     private string statusMessage = "Nicht verbunden";
     private List<RadioStation> stations = new();
+    private RadioStation? currentStation = null;
     private bool isLoading = false;
     private int volume = 50;
 
     protected override void OnInitialized()
     {
         MqttService.OnStationsReceived += HandleStationsReceived;
+        MqttService.OnCurrentStationReceived += HandleCurrentStationReceived;
         MqttService.OnStatusChanged += HandleStatusChanged;
     }
 
@@ -215,11 +256,17 @@
     {
         await MqttService.DisconnectAsync();
         stations.Clear();
+        currentStation = null;
     }
 
     private async Task GetStations()
     {
         await MqttService.SendGetStationsCommandAsync();
+    }
+
+    private async Task GetCurrentStation()
+    {
+        await MqttService.GetCurrentStationAsync();
     }
 
     private async Task PlayStation(RadioStation station)
@@ -266,6 +313,23 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void HandleCurrentStationReceived(RadioStation? station)
+    {
+        Console.WriteLine($"[RadioStations] HandleCurrentStationReceived called");
+        currentStation = station;
+
+        if (station != null)
+        {
+            Console.WriteLine($"  - Current: {station.Name} @ {station.Frequency}");
+        }
+        else
+        {
+            Console.WriteLine("  - No station playing");
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
     private void HandleStatusChanged(string message)
     {
         statusMessage = message;
@@ -285,6 +349,7 @@
     public void Dispose()
     {
         MqttService.OnStationsReceived -= HandleStationsReceived;
+        MqttService.OnCurrentStationReceived -= HandleCurrentStationReceived;
         MqttService.OnStatusChanged -= HandleStatusChanged;
     }
 }

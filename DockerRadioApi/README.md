@@ -47,8 +47,3 @@ To pull the published image:
 docker pull ghcr.io/<owner>/<repo>:latest
 ```
 
-If the package is private, authenticate first:
-
-```bash
-echo <github-token> | docker login ghcr.io -u <github-username> --password-stdin
-```

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Text;
+using System.Text.Json;
 using MQTTnet;
 
 namespace RadioApi;
@@ -154,6 +155,24 @@ public sealed class MqttClient : IAsyncDisposable
             _audioPlayer.Stop();
         }
 
+        if (topicParts.Contains("read") && topicParts.Contains("senderList"))
+        {
+            var path = ServiceListParser.DefaultServiceListPath;
+            var serviceList = await ServiceListParser.ParseFileAsync(path);
+
+            if (!serviceList.Success)
+            {
+                Console.WriteLine(serviceList.Message);
+                return;
+            }
+
+            Console.WriteLine(serviceList.Message);
+
+            var json = JsonSerializer.Serialize(new { Stations = serviceList.Services });
+
+            await SendSenderlist(json);
+        }
+
         // TODO check Topics
         //if (!this.forwardedSubTopics.Contains(topicParts[^2]))
         //{
@@ -169,6 +188,36 @@ public sealed class MqttClient : IAsyncDisposable
 
         Console.WriteLine($"Received application message. Topic: {e.ApplicationMessage.Topic} -- Payload: {payload}");
     }
+
+    public async Task SendSenderlist(string json)
+    {
+        //const string senderListPayload = """
+        //                                 {
+        //                                   "stations": [
+        //                                     {
+        //                                       "label": "Testsender",
+        //                                       "mhz": 188.928,
+        //                                       "serviceId": 3559,
+        //                                       "subChannelId": 15,
+        //                                       "strength": 200
+        //                                     },
+        //                                     {
+        //                                       "label": "Testsender 2",
+        //                                       "mhz": 188.928,
+        //                                       "serviceId": 3577,
+        //                                       "subChannelId": 6,
+        //                                       "strength": -27
+        //                                     }
+        //                                   ]
+        //                                 }
+        //                                 """;
+
+        await this.mqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+            .WithTopic("sislink/l008/sl008u04/slp001/status/dab/senderList")
+            .WithPayload(json)
+            .Build());
+    }
+
 
     private async Task OnConnectedAsync(MqttClientConnectedEventArgs e)
     {

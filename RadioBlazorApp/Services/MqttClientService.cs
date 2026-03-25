@@ -13,11 +13,14 @@ public class MqttClientService : IDisposable
     private int _brokerPort = 1883;
     private string _requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
     private string _responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
+    private string _currentStationRequestTopic = "sislink/l008/sl008u04/slp001/read/dab/currentSender";
+    private string _currentStationResponseTopic = "sislink/l008/sl008u04/slp001/status/dab/currentSender";
     private string _playTopic = "sislink/l008/sl008u04/slp001/write/dab/play";
     private string _stopTopic = "sislink/l008/sl008u04/slp001/write/dab/stop";
     private string _volumeTopic = "sislink/l008/sl008u04/slp001/write/dab/volume";
 
     public event Action<List<RadioStation>>? OnStationsReceived;
+    public event Action<RadioStation?>? OnCurrentStationReceived;
     public event Action<string>? OnStatusChanged;
     public bool IsConnected => _mqttClient?.IsConnected ?? false;
 
@@ -43,9 +46,13 @@ public class MqttClientService : IDisposable
             await _mqttClient.ConnectAsync(options);
             OnStatusChanged?.Invoke($"Verbunden mit {_brokerAddress}:{_brokerPort}");
 
-            // Subscribe zum Response-Topic
+            // Subscribe zum Response-Topic für Senderliste
             await _mqttClient.SubscribeAsync(_responseTopic);
             OnStatusChanged?.Invoke($"Subscribed zu Topic: {_responseTopic}");
+
+            // Subscribe zum Response-Topic für aktuellen Sender
+            await _mqttClient.SubscribeAsync(_currentStationResponseTopic);
+            OnStatusChanged?.Invoke($"Subscribed zu Topic: {_currentStationResponseTopic}");
         }
         catch (Exception ex)
         {
@@ -85,6 +92,31 @@ public class MqttClientService : IDisposable
         catch (Exception ex)
         {
             OnStatusChanged?.Invoke($"Fehler beim Senden: {ex.Message}");
+        }
+    }
+
+    public async Task GetCurrentStationAsync()
+    {
+        if (_mqttClient == null || !_mqttClient.IsConnected)
+        {
+            OnStatusChanged?.Invoke("Nicht verbunden! Bitte zuerst verbinden.");
+            return;
+        }
+
+        try
+        {
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(_currentStationRequestTopic)
+                .WithPayload("{}")
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await _mqttClient.PublishAsync(message);
+            OnStatusChanged?.Invoke($"📻 Aktuellen Sender abrufen...");
+        }
+        catch (Exception ex)
+        {
+            OnStatusChanged?.Invoke($"❌ Fehler beim Abrufen des aktuellen Senders: {ex.Message}");
         }
     }
 
@@ -183,7 +215,8 @@ public class MqttClientService : IDisposable
         try
         {
             var payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
-            OnStatusChanged?.Invoke($"📨 Nachricht empfangen von Topic: {e.ApplicationMessage.Topic}");
+            var topic = e.ApplicationMessage.Topic;
+            OnStatusChanged?.Invoke($"📨 Nachricht empfangen von Topic: {topic}");
 
             // Repariere JavaScript-Objektnotation zu gültigem JSON
             // Füge Anführungszeichen um Property-Namen hinzu
@@ -192,24 +225,44 @@ public class MqttClientService : IDisposable
                 @"(\s*)(\w+)(\s*):", 
                 "$1\"$2\"$3:");
 
-            // Parse JSON mit stations-Array
-            var response = JsonSerializer.Deserialize<StationsResponse>(jsonPayload, new JsonSerializerOptions 
-            { 
-                PropertyNameCaseInsensitive = true 
-            });
-
-            if (response?.Stations != null && response.Stations.Count > 0)
+            // Prüfe welches Topic die Nachricht gesendet hat
+            if (topic == _responseTopic)
             {
-                OnStatusChanged?.Invoke($"🎵 {response.Stations.Count} Sender gefunden - übertrage zur UI...");
+                // Parse JSON mit stations-Array
+                var response = JsonSerializer.Deserialize<StationsResponse>(jsonPayload, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
 
-                // Event auslösen
-                OnStationsReceived?.Invoke(response.Stations);
-
-                OnStatusChanged?.Invoke($"✅ {response.Stations.Count} Sender erfolgreich übertragen!");
+                if (response?.Stations != null && response.Stations.Count > 0)
+                {
+                    OnStatusChanged?.Invoke($"🎵 {response.Stations.Count} Sender gefunden - übertrage zur UI...");
+                    OnStationsReceived?.Invoke(response.Stations);
+                    OnStatusChanged?.Invoke($"✅ {response.Stations.Count} Sender erfolgreich übertragen!");
+                }
+                else
+                {
+                    OnStatusChanged?.Invoke("⚠️ Keine Sender in der Antwort gefunden");
+                }
             }
-            else
+            else if (topic == _currentStationResponseTopic)
             {
-                OnStatusChanged?.Invoke("⚠️ Keine Sender in der Antwort gefunden");
+                // Parse JSON mit station-Objekt
+                var response = JsonSerializer.Deserialize<CurrentStationResponse>(jsonPayload, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
+
+                if (response?.Station != null)
+                {
+                    OnStatusChanged?.Invoke($"📻 Aktueller Sender: {response.Station.Label}");
+                    OnCurrentStationReceived?.Invoke(response.Station);
+                }
+                else
+                {
+                    OnStatusChanged?.Invoke("⚠️ Kein Sender läuft aktuell");
+                    OnCurrentStationReceived?.Invoke(null);
+                }
             }
         }
         catch (Exception ex)

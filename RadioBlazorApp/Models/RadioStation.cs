@@ -9,6 +9,14 @@ public class StationsResponse
 }
 
 /// <summary>
+/// Response-Wrapper für den aktuell laufenden Sender
+/// </summary>
+public class CurrentStationResponse
+{
+    public RadioStation? Station { get; set; }
+}
+
+/// <summary>
 /// Repräsentiert einen DAB+ Radio-Sender
 /// </summary>
 public class RadioStation

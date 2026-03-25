@@ -18,33 +18,19 @@
             MQTT Verbindung
         </MudText>
         <MudGrid>
-            <MudItem xs="12" md="4">
+            <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="brokerAddress" 
                               Label="Broker Adresse" 
                               Variant="Variant.Outlined" 
                               Disabled="@MqttService.IsConnected"
                               FullWidth="true" />
             </MudItem>
-            <MudItem xs="12" md="2">
+            <MudItem xs="12" md="6">
                 <MudNumericField @bind-Value="brokerPort" 
                                  Label="Port" 
                                  Variant="Variant.Outlined" 
                                  Disabled="@MqttService.IsConnected"
                                  FullWidth="true" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="requestTopic" 
-                              Label="Request Topic" 
-                              Variant="Variant.Outlined" 
-                              Disabled="@MqttService.IsConnected"
-                              FullWidth="true" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="responseTopic" 
-                              Label="Response Topic" 
-                              Variant="Variant.Outlined" 
-                              Disabled="@MqttService.IsConnected"
-                              FullWidth="true" />
             </MudItem>
         </MudGrid>
         <MudDivider Class="my-4" />
@@ -151,8 +137,8 @@
 @code {
     private string brokerAddress = "localhost";
     private int brokerPort = 1883;
-    private string requestTopic = "radio/command";
-    private string responseTopic = "radio/stations";
+    private string requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
+    private string responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
     private string statusMessage = "Nicht verbunden";
     private List<RadioStation> stations = new();
     private bool isLoading = false;

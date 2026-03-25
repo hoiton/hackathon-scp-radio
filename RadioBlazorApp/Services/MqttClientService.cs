@@ -10,8 +10,8 @@ public class MqttClientService : IDisposable
     private IMqttClient? _mqttClient;
     private string _brokerAddress = "localhost";
     private int _brokerPort = 1883;
-    private string _requestTopic = "radio/command";
-    private string _responseTopic = "radio/stations";
+    private string _requestTopic = "sislink/l008/sl008u04/slp001/read/dab/senderList";
+    private string _responseTopic = "sislink/l008/sl008u04/slp001/status/dab/senderList";
 
     public event Action<List<RadioStation>>? OnStationsReceived;
     public event Action<string>? OnStatusChanged;
@@ -71,7 +71,7 @@ public class MqttClientService : IDisposable
         {
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic(_requestTopic)
-                .WithPayload("GET_STATIONS")
+                .WithPayload("{}")
                 .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                 .Build();
 
@@ -91,13 +91,23 @@ public class MqttClientService : IDisposable
             var payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
             OnStatusChanged?.Invoke($"Nachricht empfangen von Topic: {e.ApplicationMessage.Topic}");
 
-            // Parse JSON zu Liste von RadioStations
-            var stations = JsonSerializer.Deserialize<List<RadioStation>>(payload);
+            // Repariere JavaScript-Objektnotation zu gültigem JSON
+            // Füge Anführungszeichen um Property-Namen hinzu
+            var jsonPayload = System.Text.RegularExpressions.Regex.Replace(
+                payload, 
+                @"(\s*)(\w+)(\s*):", 
+                "$1\"$2\"$3:");
 
-            if (stations != null)
+            // Parse JSON mit stations-Array
+            var response = JsonSerializer.Deserialize<StationsResponse>(jsonPayload, new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true 
+            });
+
+            if (response?.Stations != null)
             {
-                OnStationsReceived?.Invoke(stations);
-                OnStatusChanged?.Invoke($"{stations.Count} Sender empfangen");
+                OnStationsReceived?.Invoke(response.Stations);
+                OnStatusChanged?.Invoke($"{response.Stations.Count} Sender empfangen");
             }
         }
         catch (Exception ex)
@@ -114,10 +124,22 @@ public class MqttClientService : IDisposable
     }
 }
 
+public class StationsResponse
+{
+    public List<RadioStation>? Stations { get; set; }
+}
+
 public class RadioStation
 {
-    public string? Name { get; set; }
-    public string? Frequency { get; set; }
-    public int SignalStrength { get; set; }
-    public string? Genre { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public double Mhz { get; set; }
+    public int ServiceId { get; set; }
+    public int SubChannelId { get; set; }
+    public int Strength { get; set; }
+
+    // Computed properties für Kompatibilität mit der UI
+    public string? Name => Label;
+    public string? Frequency => $"{Mhz:F3} MHz";
+    public int SignalStrength => Strength;
+    public string? Genre => "DAB+";
 }

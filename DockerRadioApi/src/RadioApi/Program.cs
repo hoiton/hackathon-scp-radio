@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 Console.WriteLine("radio-api interactive mode");
-Console.WriteLine("Commands: play [file], sample, help, exit");
+Console.WriteLine("Commands: play [file], sample, services [file], help, exit");
 
 var player = new AudioPlayer();
 
@@ -29,9 +31,10 @@ while (true)
 
     if (string.Equals(command, "help", StringComparison.OrdinalIgnoreCase))
     {
-        Console.WriteLine("play [file]  Play a WAV file. Defaults to the packaged sample.");
-        Console.WriteLine("sample       Show the packaged sample path.");
-        Console.WriteLine("exit         Stop the container process.");
+        Console.WriteLine("play [file]      Play a WAV file. Defaults to the packaged sample.");
+        Console.WriteLine("sample           Show the packaged sample path.");
+        Console.WriteLine("services [file]  Parse the DAB+ sender list file.");
+        Console.WriteLine("exit             Stop the container process.");
         continue;
     }
 
@@ -55,7 +58,39 @@ while (true)
         continue;
     }
 
-    Console.WriteLine("Unknown command. Use: play [file], sample, help, exit");
+    if (command.StartsWith("services", StringComparison.OrdinalIgnoreCase))
+    {
+        var file = command.Length > "services".Length ? command["services".Length..].Trim() : null;
+        var path = string.IsNullOrWhiteSpace(file)
+            ? ServiceListParser.DefaultServiceListPath
+            : file;
+
+        var result = await ServiceListParser.ParseFileAsync(path);
+
+        if (!result.Success)
+        {
+            Console.WriteLine(result.Message);
+            continue;
+        }
+
+        Console.WriteLine(result.Message);
+
+        foreach (var group in result.Services.GroupBy(service => service.FrequencyMHz))
+        {
+            Console.WriteLine($"{group.Key.ToString("0.000", CultureInfo.InvariantCulture)} MHz");
+
+            foreach (var service in group.OrderBy(service => service.Label, StringComparer.OrdinalIgnoreCase))
+            {
+                var started = service.Started ? "*" : "-";
+                Console.WriteLine(
+                    $"  [{service.SubChannelId,2}] {service.Label} | serviceId={service.ServiceId} strength={service.Strength} country={service.Country} version={service.Version} started={started}");
+            }
+        }
+
+        continue;
+    }
+
+    Console.WriteLine("Unknown command. Use: play [file], sample, services [file], help, exit");
 }
 
 internal sealed class AudioPlayer
@@ -134,4 +169,80 @@ internal sealed class AudioPlayer
     }
 }
 
+internal static partial class ServiceListParser
+{
+    public const string DefaultServiceListPath = "/sys/bus/spi/devices/spi0.1/si468x_service_list";
+
+    public static async Task<ServiceListParseResult> ParseFileAsync(string path)
+    {
+        var resolvedPath = Path.IsPathRooted(path)
+            ? path
+            : Path.GetFullPath(path, "/app");
+
+        if (!File.Exists(resolvedPath))
+        {
+            return new ServiceListParseResult(false, $"Service list file not found: {resolvedPath}", []);
+        }
+
+        var lines = await File.ReadAllLinesAsync(resolvedPath);
+        var services = new List<DabService>();
+
+        foreach (var line in lines)
+        {
+            if (!TryParseServiceLine(line, out var service))
+            {
+                continue;
+            }
+
+            services.Add(service);
+        }
+
+        return services.Count == 0
+            ? new ServiceListParseResult(false, $"No service entries found in {resolvedPath}.", [])
+            : new ServiceListParseResult(true, $"Parsed {services.Count} services from {resolvedPath}.", services);
+    }
+
+    private static bool TryParseServiceLine(string line, out DabService service)
+    {
+        service = default!;
+
+        var match = ServiceLineRegex().Match(line);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        service = new DabService(
+            double.Parse(match.Groups["frequency"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["serviceId"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["subChannelId"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["fic"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["strength"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["country"].Value, CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["version"].Value, CultureInfo.InvariantCulture),
+            string.Equals(match.Groups["started"].Value, "*", StringComparison.Ordinal),
+            match.Groups["label"].Value.Trim());
+
+        return true;
+    }
+
+    [GeneratedRegex(
+        @"^\s*(?<frequency>\d+\.\d+)\s+(?<serviceId>\d+)\s+(?<subChannelId>\d+)\s+(?<fic>\d+)\s+(?<strength>\d+)\s+(?<country>\d+)\s+(?<version>\d+)\s+(?<started>[-*])\s+(?<label>.+?)\s*$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex ServiceLineRegex();
+}
+
 internal sealed record PlayResult(bool Success, string Message, string? File, int? ExitCode);
+
+internal sealed record DabService(
+    double FrequencyMHz,
+    int ServiceId,
+    int SubChannelId,
+    int Fic,
+    int Strength,
+    int Country,
+    int Version,
+    bool Started,
+    string Label);
+
+internal sealed record ServiceListParseResult(bool Success, string Message, IReadOnlyList<DabService> Services);

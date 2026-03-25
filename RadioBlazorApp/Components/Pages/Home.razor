@@ -1,0 +1,32 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h3" GutterBottom="true">Willkommen bei DAB+ Radio</MudText>
+    <MudText Typo="Typo.body1">
+        Diese Anwendung ermöglicht es Ihnen, DAB+ Radiosender zu empfangen und zu steuern.
+    </MudText>
+
+    <MudPaper Class="pa-4 mt-4" Elevation="2">
+        <MudText Typo="Typo.h5" GutterBottom="true">Features</MudText>
+        <MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Radio" />
+                <MudText>DAB+ Radio Streaming</MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.DarkMode" />
+                <MudText>Dark/Light Mode</MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Tune" />
+                <MudText>Senderverwaltung</MudText>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/radio-stations" Class="mt-4">
+        Zu den Radiosendern
+    </MudButton>
+</MudContainer>

@@ -1,0 +1,127 @@
+﻿@inherits LayoutComponentBase
+
+<style>
+    .mud-theme-light .mud-simple-table tbody tr:hover {
+        background-color: rgba(26, 26, 62, 0.08) !important;
+        transition: background-color 0.2s ease;
+    }
+
+    .mud-theme-dark .mud-simple-table tbody tr:hover {
+        background-color: rgba(38, 198, 218, 0.12) !important;
+    }
+</style>
+
+<MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="@(_isDarkMode ? 2 : 2)">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <img src="@LogoPath" alt="SISAG" style="height: 40px; margin-left: 12px; margin-top: 12px;" />
+        <MudSpacer />
+        <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggle" />
+        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
+    </MudAppBar>
+    <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent Class="pt-16 pa-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = true;
+    private MudTheme? _theme = null;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        _theme = new()
+        {
+            PaletteLight = _lightPalette,
+            PaletteDark = _darkPalette,
+            LayoutProperties = new LayoutProperties()
+        };
+    }
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void DarkModeToggle()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private readonly PaletteLight _lightPalette = new()
+    {
+        Black = "#1a1a3e",
+        Primary = "#0056a4",
+        Secondary = "#00acc1",
+        AppbarText = "#1a1a3e",
+        AppbarBackground = "#f8f8f8",
+        DrawerBackground = "#f8f8f8",
+        DrawerText = "#1a1a3e",
+        DrawerIcon = "#1a1a3e",
+        GrayLight = "#e8e8e8",
+        GrayLighter = "#f9f9f9",
+        Success = "#00a651",
+        Info = "#0091ea",
+        Warning = "#ff9800",
+        Error = "#e30613",
+        Dark = "#1a1a3e",
+    };
+
+    private readonly PaletteDark _darkPalette = new()
+    {
+        Primary = "#26c6da",
+        Secondary = "#00838f",
+        Surface = "#2d2d30",
+        Background = "#1e1e1e",
+        BackgroundGray = "#252526",
+        AppbarText = "#ffffff",
+        AppbarBackground = "rgba(45,45,48,0.98)",
+        DrawerBackground = "#252526",
+        ActionDefault = "#cccccc",
+        ActionDisabled = "#6e6e6e",
+        ActionDisabledBackground = "#3e3e42",
+        TextPrimary = "#ffffff",
+        TextSecondary = "#cccccc",
+        TextDisabled = "#6e6e6e",
+        DrawerIcon = "#cccccc",
+        DrawerText = "#ffffff",
+        GrayLight = "#3e3e42",
+        GrayLighter = "#333337",
+        Info = "#29b6f6",
+        Success = "#00e676",
+        Warning = "#ffa726",
+        Error = "#e30613",
+        Dark = "#1b1b1c",
+        LinesDefault = "#3e3e42",
+        TableLines = "#3e3e42",
+        Divider = "#3e3e42",
+        OverlayLight = "#00000080",
+    };
+
+    public string DarkLightModeButtonIcon => _isDarkMode switch
+    {
+        true => Icons.Material.Rounded.AutoMode,
+        false => Icons.Material.Outlined.DarkMode,
+    };
+
+    private string LogoPath => _isDarkMode
+        ? "/images/headerlogo_sisag.svg"
+        : "/images/logo_sisag.svg";
+}

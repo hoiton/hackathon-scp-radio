@@ -52,3 +52,4 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/DockerRadioApi/src/RadioApi/.vs/RadioApi

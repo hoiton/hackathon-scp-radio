@@ -158,12 +158,12 @@ internal sealed class AudioPlayer
 
             startInfo.ArgumentList.Add(targetPath);
 
-            using var playbackProcess = new Process { StartInfo = startInfo };
-            playbackProcess.Start();
+            _playbackProcess = new Process { StartInfo = startInfo };
+            _playbackProcess.Start();
 
-            var stdout = await playbackProcess.StandardOutput.ReadToEndAsync();
-            var stderr = await playbackProcess.StandardError.ReadToEndAsync();
-            await playbackProcess.WaitForExitAsync();
+            var stdout = await _playbackProcess.StandardOutput.ReadToEndAsync();
+            var stderr = await _playbackProcess.StandardError.ReadToEndAsync();
+            await _playbackProcess.WaitForExitAsync();
 
             if (!string.IsNullOrWhiteSpace(stdout))
             {
@@ -175,13 +175,14 @@ internal sealed class AudioPlayer
                 Console.Error.WriteLine(stderr.Trim());
             }
 
-            return playbackProcess.ExitCode == 0
-                ? new PlayResult(true, "Playback completed.", targetPath, playbackProcess.ExitCode)
-                : new PlayResult(false, $"aplay exited with code {playbackProcess.ExitCode}.", targetPath, playbackProcess.ExitCode);
+            return _playbackProcess.ExitCode == 0
+                ? new PlayResult(true, "Playback completed.", targetPath, _playbackProcess.ExitCode)
+                : new PlayResult(false, $"aplay exited with code {_playbackProcess.ExitCode}.", targetPath, _playbackProcess.ExitCode);
         }
         finally
         {
             _playbackLock.Release();
+            _playbackProcess?.Dispose();
         }
     }
 

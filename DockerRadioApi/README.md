@@ -1,19 +1,6 @@
 # C# Command-Line Project with Docker
 
-This is a minimal .NET 8 command-line application packaged with Docker.
-
-## Project structure
-
-```
-csharp-cli-docker/
-├── .dockerignore
-├── Dockerfile
-├── README.md
-└── src/
-    └── CliDockerApp/
-        ├── CliDockerApp.csproj
-        └── Program.cs
-```
+This is a minimal .NET 10 command-line application packaged with Docker.
 
 ## Run locally
 
@@ -25,13 +12,13 @@ dotnet run --project src/CliDockerApp/CliDockerApp.csproj -- --name Michael
 ## Build Docker image
 
 ```bash
-docker build -t cli-docker-app .
+docker build -t radio-api .
 ```
 
 ## Run with Docker
 
 ```bash
-docker run --rm cli-docker-app --name Michael
+docker run --rm radio-api --name Michael
 ```
 
 Expected output:

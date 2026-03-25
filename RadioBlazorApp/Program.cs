@@ -1,7 +1,11 @@
 using RadioBlazorApp.Components;
 using RadioBlazorApp.Services;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add MudBlazor services
+builder.Services.AddMudServices();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
